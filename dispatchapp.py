@@ -7,7 +7,7 @@ from logging.handlers import TimedRotatingFileHandler
 import daemon
 from daemon import runner
 
-from udbgenerator import *
+from generator import *
 
 def SetupLogger(options):
     FORMAT = "%(asctime)-15s %(levelname)-8s %(filename)-16s %(message)s"
