@@ -59,7 +59,8 @@ class Dispatcher:
     def onRequest(self,watcher,revents):
         if 0 == (pyev.EV_READ & revents):
             return
-        packet,address = watcher.fd.recvfrom(1024)
+        sock = watcher.data
+        packet,address = sock.recvfrom(1024)
         if packet is None or address is None:
             return
         packetlen,msg = etpacket.unpack(packet)
@@ -89,7 +90,7 @@ class Dispatcher:
         msg.servers = [ smsg ]
 
         packet = etpacket.pack(msg)
-        watcher.fd.sendto(packet,address)
+        sock.sendto(packet,address)
         
 
     def start(self):
@@ -104,8 +105,10 @@ class Dispatcher:
             s0,s1= socket.socketpair()
 
             io_s = loop.io(s,pyev.EV_READ,self.onRequest)
+            io_s.data = s
             io_s.start()
             io_s0 = loop.io(s0,pyev.EV_READ,self.onPipe)
+            io_s0.data = s0
             io_s0.start()
 
             sig_int = loop.signal(signal.SIGINT,self.sig_cb)
