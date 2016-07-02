@@ -2,12 +2,11 @@
 
 import logging
 import signal
-import socket
-import pyev
+import zmq
 
 from dbtypes import *
 from dispatchdb import DispatchDB
-from etpacket import *
+from zmsg import pb_recv,pb_router_recv
 
 class Dispatcher:
     def __init__(self,options):
@@ -40,57 +39,43 @@ class Dispatcher:
             server = self.db.ctx_default.get(ctx,None)
         return server
 
-    def listen(self):
-        s = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-        s.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
-        s.bind(self.options.get('address'))
-        s.setblocking(0)
-        return s
-
-    def sig_cb(self,watcher,revents):
-        logging.info('signal: %d' % revents)
-        watcher.loop.stop(pyev.EVBREAK_ALL)
 
     def onPipe(self,watcher,revents):
         data = watcher.fd.read(32)
         # TODO get new DispatchDB
         pass
 
-    def onRequest(self,watcher,revents):
-        if 0 == (pyev.EV_READ & revents):
-            return
-        sock = watcher.data
-        packet,address = sock.recvfrom(1024)
-        if packet is None or address is None:
-            return
-        packetlen,msg = etpacket.unpack(packet)
-        if msg is None:
-            return
+    def handleRequest(self,sock):
+        while True:
+            envelope,request= pb_router_recv(sock)
+            if envelope is None or request is None:
+                return
 
-        if msg.DESCRIPTOR.full_name != 'ptt.rr.QueryServer':
-            logging.warning('unsupport request %s from %s' % (msg.DESCRIPTOR.full_name,str(address)))
-            return
-        ctx = None
-        account = None
+            if request.DESCRIPTOR.full_name != 'dispatch.Request':
+                logging.warning('unsupport request %s from %s' % (request.DESCRIPTOR.full_name,str(address)))
+                return
+            ctx = None
+            account = None
 
-        if msg.HasField('account'):
-            account = msg.account
-        if msg.HasField('system'):
-            if msg.system.HasField('context'):
-                ctx = msg.system.context
+            if request.HasField('ctx'):
+                ctx = request.ctx
+            if request.HasField('account'):
+                account = request.account
 
-        server = self.dispatch(ctx,account)
-        logging.info('request from %s,ctx=%s,account=%s, return %s' % (str(address),ctx,account,str(server)))
+            server = self.dispatch(ctx,account)
+            logging.debug('request ctx=%s,account=%s, return %s' % (ctx,account,str(server)))
 
-        smsg = ptt.ptt_pb2.Server()
-        smsg.ip = server.net_ip
-        smsg.port = server.net_port
-        msg = ptt.rr_pb2.QueryServerAck()
-        msg.result = 0
-        msg.servers = [ smsg ]
-
-        packet = etpacket.pack(msg)
-        sock.sendto(packet,address)
+            reply = proto.dispatch.Reply()
+            reply.server_ip = server.ip
+            reply.server_port = server.port
+            if request.HasField('client_ip'):
+                reply.client_ip = request.client_ip
+            if request.HasField('client_port'):
+                reply.client_port = request.client_port
+            
+            sock.send_multipart(envelope,zmq.SNDMORE)
+            sock.send_string(reply.DESCRIPTOR.full_name,zmq.SNDMORE)
+            sock.send( reply.SerializeToString() )
         
 
     def start(self):
@@ -98,31 +83,26 @@ class Dispatcher:
         if self.db is None:
             logging.fatal('Can not read database')
             return
-        loop = pyev.default_loop()
-
+        zctx = zmq.Context()
         try:
-            s = listen()
-            s0,s1= socket.socketpair()
+            svcsock = zctx.socket(zmq.ROUTER)
+            svcsock.bind(self.options.get('svc_address'))
 
-            io_s = loop.io(s,pyev.EV_READ,self.onRequest)
-            io_s.data = s
-            io_s.start()
-            io_s0 = loop.io(s0,pyev.EV_READ,self.onPipe)
-            io_s0.data = s0
-            io_s0.start()
+            poller = zmq.Poller()
+            poller.register(svcsock,zmq.POLLIN)
 
-            sig_int = loop.signal(signal.SIGINT,self.sig_cb)
-            sig_int.start()
-            sig_term = loop.signal(signal.SIGTERM,self.sig_cb)
-            sig_term.start()
-
-            loop.start()
+            while True:
+                events = dict(poller.poll())
+                if len(events) == 0:
+                    logging.debug('poller 0')
+                    continue
+                if svcsock in events:
+                    self.handleRequest(svcsock)
+        except zmq.ContextTerminated as e:
+            logging.info('ZMQ context terminated')
         finally:
-            if s is not None:
-                s.close()
-            if s0 is not None:
-                s0.close()
-            if s1 is not None:
-                s1.close()
+            if not zctx.closed:
+                if svcsock is not None:
+                    svcsock.close()
 
 
