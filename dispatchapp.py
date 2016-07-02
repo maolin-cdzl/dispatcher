@@ -32,12 +32,6 @@ test_db = {
     'database': 'test'
 }
 
-std_db = {
-    'server': '119.254.209.41:9433',
-    'user': 'echat_log',
-    'password': 'echat_log',
-    'database': 'echat_r1'
-}
 
 class App:
     def __init__(self,options):
@@ -56,6 +50,14 @@ options = {
     'root_path': os.path.dirname(os.path.abspath(__file__)),
     'debug': True,
     'default_ctx': 'rel',
+    'address': ('0.0.0.0',10009),
+    'ruledb': {
+        'server': '119.254.209.41:9433',
+        'user': 'echat_log',
+        'password': 'echat_log',
+        'database': 'echat_r1'
+    },
+    'sync_period' : 60,
 }
 
 if __name__ == '__main__':

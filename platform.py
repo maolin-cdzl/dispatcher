@@ -1,4 +1,5 @@
 import logging
+from udb import UDB
 
 class Platform:
     def __init__(self):
@@ -7,11 +8,11 @@ class Platform:
         self.servers = {}
         self.company_rules = {}
         self.agent_rules = {}
-        self.udb = None
+        self.udb = UDB()
 
     @staticmethod
     def create(row):
-        if ('platform' is not in row) or ('db_server' is not in row) or ('db_user' is not in row) or ('db_password' is not in row) or ('db_database' is not in row):
+        if ('platform' not in row) or ('db_server' not in row) or ('db_user' not in row) or ('db_password' not in row) or ('db_database' not in row):
             logging.error('Platform information missing')
             return None
         pf = Platform()
@@ -20,9 +21,13 @@ class Platform:
         return pf
 
     def setUdb(self,udb):
-        self.udb = udb
+        if udb is not None:
+            self.udb = udb
+
 
     def getUser(self,account):
+        if account is None:
+            return None
         return self.udb.user_map.get(account,None)
 
     def addServer(self,server):
