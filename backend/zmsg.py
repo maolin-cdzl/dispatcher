@@ -3,6 +3,7 @@
 import logging
 import zmq
 from google.protobuf import symbol_database as _symbol_database
+import disp_pb2
 
 def zmsg_recv(sock):
     try:
@@ -14,7 +15,7 @@ def zmsg_recv(sock):
         while envelop_pos < len(frames):
             if len(frames) == 0:
                 break
-            envelop_pos++
+            envelop_pos += 1
 
         if envelop_pos == len(frames):
             return (None,frames)
@@ -35,7 +36,7 @@ def zmsg_router_recv(sock):
         while envelop_pos < len(frames):
             if len(frames) == 0:
                 break
-            envelop_pos++
+            envelop_pos += 1
 
         if envelop_pos == len(frames):
             return (frames[:1],frames[1:])

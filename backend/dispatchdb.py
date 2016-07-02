@@ -10,6 +10,7 @@ class DispatchDB:
         if pf is None:
             return
         self.platform_map[pf.name] = pf
+        logging.info('Construct platform: %s' % pf.name)
 
     def addCtx(self,pfname,ctx,defaultServer):
         if pfname is None or ctx is None or defaultServer is None:
@@ -34,6 +35,7 @@ class DispatchDB:
             logging.error("server's platform %s is not exists" % pfname)
             return
         platform.addServer(server)
+        logging.info('Add server %s of platform %s' % (server.name,pfname))
 
     def addCompanyRule(self,pfname,cid,sname):
         if pfname is None or cid is None or sname is None:

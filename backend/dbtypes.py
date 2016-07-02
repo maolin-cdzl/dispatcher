@@ -45,9 +45,9 @@ class Server:
     def __init__(self):
         self.name = None
         self.ip = None
-        self.port = None
-        self.net_ip = 0
-        self.net_port = 0
+        self.port = 0 
+        #self.net_ip = 0
+        #self.net_port = 0
 
     def __str__(self):
         return '%s - %s:%d' % (self.name,self.ip,self.port)
@@ -61,6 +61,6 @@ class Server:
         s.ip = str(row['ip'])
         s.port = row['port']
 
-        s.net_ip = socket.inet_aton(self.ip)
-        s.net_port = socket.htons(self.port)
+        #s.net_ip = socket.inet_aton(self.ip)
+        #s.net_port = socket.htons(self.port)
         return s

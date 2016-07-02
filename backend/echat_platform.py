@@ -12,12 +12,12 @@ class Platform:
 
     @staticmethod
     def create(row):
-        if ('platform' not in row) or ('db_server' not in row) or ('db_user' not in row) or ('db_password' not in row) or ('db_database' not in row):
+        if ('platform' not in row) or ('db_type' not in row) or ('db_server' not in row) or ('db_user' not in row) or ('db_password' not in row) or ('db_database' not in row):
             logging.error('Platform information missing')
             return None
         pf = Platform()
         pf.name = row['platform']
-        pf.dbconf = { 'server': row['db_server'], 'user': row['db_user'], 'password': row['db_password'], 'database': row['db_database'] }
+        pf.dbconf = { 'type': row['db_type'], 'server': row['db_server'], 'user': row['db_user'], 'password': row['db_password'], 'database': row['db_database'] }
         return pf
 
     def setUdb(self,udb):

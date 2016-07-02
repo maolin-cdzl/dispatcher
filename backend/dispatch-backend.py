@@ -7,7 +7,7 @@ from logging.handlers import TimedRotatingFileHandler
 import daemon
 from daemon import runner
 
-from generator import *
+from backend_svc import BackendSvc
 
 def SetupLogger(options):
     FORMAT = "%(asctime)-15s %(levelname)-8s %(filename)-16s %(message)s"
@@ -25,14 +25,6 @@ def SetupLogger(options):
     logger.addHandler(handler)
 
 
-test_db = {
-    'server': '222.222.46.204:9033',
-    'user': 'test',
-    'password': 'echat_test',
-    'database': 'test'
-}
-
-
 class App:
     def __init__(self,options):
         self.options = options
@@ -44,19 +36,28 @@ class App:
         self.svcs = []
 
     def run(self):
-        udb = GenerateUDB(test_db)
+        svc = BackendSvc(self.options)
+        svc.start()
 
 options = {
     'root_path': os.path.dirname(os.path.abspath(__file__)),
     'debug': True,
     'default_ctx': 'rel',
-    'address': ('0.0.0.0',10009),
+    'address': 'tcp://127.0.0.1:5000',
     'ruledb': {
-        'server': '119.254.209.41:9433',
-        'user': 'echat_log',
-        'password': 'echat_log',
-        'database': 'echat_r1'
+        'type': 'mysql',
+        'server': 'localhost',
+        'user': 'dispatcher',
+        'password': 'shanlitech@231207',
+        'database': 'dispatch'
     },
+    #'ruledb': {
+    #    'type': 'mssql',
+    #    'server': '222.222.46.204:9033',
+    #    'user': 'test',
+    #    'password': 'echat_test',
+    #    'database': 'test'
+    #},
     'sync_period' : 60,
 }
 

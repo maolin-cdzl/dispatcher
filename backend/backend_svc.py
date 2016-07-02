@@ -6,11 +6,13 @@ import zmq
 
 from dbtypes import *
 from dispatchdb import DispatchDB
+from generator import GenerateDispatchDB
 from zmsg import pb_recv,pb_router_recv
+import disp_pb2
 
-class Dispatcher:
+class BackendSvc:
     def __init__(self,options):
-        self.options
+        self.options = options
         self.db = None
 
     def setDB(self,db):
@@ -65,7 +67,7 @@ class Dispatcher:
             server = self.dispatch(ctx,account)
             logging.debug('request ctx=%s,account=%s, return %s' % (ctx,account,str(server)))
 
-            reply = proto.dispatch.Reply()
+            reply = disp_pb2.Reply()
             reply.server_ip = server.ip
             reply.server_port = server.port
             if request.HasField('client_ip'):
@@ -86,7 +88,7 @@ class Dispatcher:
         zctx = zmq.Context()
         try:
             svcsock = zctx.socket(zmq.ROUTER)
-            svcsock.bind(self.options.get('svc_address'))
+            svcsock.bind(self.options.get('address'))
 
             poller = zmq.Poller()
             poller.register(svcsock,zmq.POLLIN)
