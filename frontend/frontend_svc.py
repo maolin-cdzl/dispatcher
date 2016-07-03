@@ -77,9 +77,10 @@ def pollRequest(options):
 
 
 def run(options):
-    #gevent.signal(signal.SIGINT,gevent.shutdown)
-    #gevent.signal(signal.SIGTERM,gevent.shutdown)
-    backend_svc = gevent.spawn(pollReply,options)
-    frontend_svc = gevent.spawn(pollRequest,options)
-    gevent.joinall([backend_svc,frontend_svc])
+    tasks = []
+    tasks.append( gevent.spawn(pollReply,options) )
+    tasks.append( gevent.spawn(pollRequest,options) )
+    gevent.signal(signal.SIGINT,gevent.killall,tasks)
+    gevent.signal(signal.SIGTERM,gevent.killall,tasks)
+    gevent.joinall(tasks)
 

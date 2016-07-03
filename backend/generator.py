@@ -126,14 +126,14 @@ def GenerateDispatchDB(dbconf):
         
 
 class DDBGenerator(threading.Thread):
-    def __init__(self,**kwargs):
+    def __init__(self,ctx,**kwargs):
         super(DDBGenerator,self).__init__()
         if 'ruledb' not in kwargs:
             raise RuntimeError('DDBGenerator need ruledb configuration')
         self.dbconf = kwargs['ruledb']
         self.q = Queue.Queue()
         self.address = 'inproc://%s' % (''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6)))
-        self.ctx = zmq.Context()
+        self.ctx = ctx
         self.s_out = None
         self.s_in = None
         if 'period' in kwargs:

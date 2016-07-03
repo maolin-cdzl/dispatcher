@@ -6,7 +6,6 @@ from logging import Formatter
 from logging.handlers import TimedRotatingFileHandler
 import daemon
 from daemon import runner
-from frontend import frontend_svc
 
 def SetupLogger(options):
     FORMAT = "%(asctime)-15s %(levelname)-8s %(filename)-16s %(message)s"
@@ -35,17 +34,23 @@ class App:
         self.svcs = []
 
     def run(self):
-        frontend_svc.run(self.options)
+        from frontend import frontend_svc
+        SetupLogger(self.options)
+        try:
+            logging.info('dispatcher frontend start')
+            frontend_svc.run(self.options)
+            logging.info('dispatcher frontend exit')
+        except Exception as e:
+            logging.error('Exception: {0}'.format(e))
 
 options = {
     'root_path': os.path.dirname(os.path.abspath(__file__)),
-    'debug': True,
+    'debug': False,
     'backend-address': 'tcp://127.0.0.1:5000',
     'frontend-address': ('127.0.0.1',5002)
 }
 
 if __name__ == '__main__':
-    SetupLogger(options)
     app = App(options)
 
     if options.get('debug',False):

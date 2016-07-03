@@ -10,6 +10,17 @@ from generator import GenerateDispatchDB,DDBGenerator
 from disp import disp_pb2
 from disp import zprotobuf 
 
+zctx = zmq.Context()
+
+def backend_exit(signum,frame):
+    print('backend_exit')
+    if not zctx.closed:
+        print('try terminate zctx')
+        zctx.term()
+
+signal.signal(signal.SIGINT,backend_exit)
+signal.signal(signal.SIGTERM,backend_exit)
+
 class BackendSvc:
     def __init__(self,options):
         self.options = options
@@ -82,8 +93,7 @@ class BackendSvc:
         if self.db is None:
             logging.fatal('Can not read database')
             return
-        zctx = zmq.Context()
-        gt = DDBGenerator(ruledb=self.options.get('ruledb'),period=self.options.get('sync_period'))
+        gt = DDBGenerator(zctx,ruledb=self.options.get('ruledb'),period=self.options.get('sync_period'))
         svcsock = zctx.socket(zmq.ROUTER)
         try:
             gt.start()
@@ -95,9 +105,7 @@ class BackendSvc:
 
             while True:
                 events = dict(poller.poll())
-                if len(events) == 0:
-                    logging.debug('poller 0')
-                    continue
+                logging.debug('poll with events: %d' % len(events))
                 if svcsock in events:
                     self.handleRequest(svcsock)
                 if gt.socket() in events:
@@ -109,7 +117,9 @@ class BackendSvc:
         except zmq.ContextTerminated as e:
             logging.info('ZMQ context terminated')
         except RuntimeError as e:
-            logging.info('RuntimeError: {0}'.format(e))
+            logging.error('RuntimeError: {0}'.format(e))
+        except Exception as e:
+            logging.error('Exception: {0}'.format(e))
         finally:
             if gt is not None:
                 gt.stop()
