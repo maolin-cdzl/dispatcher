@@ -4,13 +4,13 @@ message Request {
 	optional string ctx = 1;
 	optional string account = 2;
 	optional string client_ip = 3;
-	optional string client_port = 4;
+	optional int32 client_port = 4;
 }
 
 message Reply {
 	optional string server_ip = 1;
 	optional int32	server_port = 2;
 	optional string client_ip = 3;
-	optional string client_port = 4;
+	optional int32 client_port = 4;
 }
 

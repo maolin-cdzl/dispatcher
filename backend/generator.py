@@ -1,6 +1,11 @@
 import logging
+import Queue
+import string
+import random
 import pymssql
 import mysql.connector
+import zmq
+import threading
 from dbtypes import User,Company,Server
 from echat_platform import Platform
 from udb import UDB
@@ -62,7 +67,6 @@ def GenerateUDB(dbconf):
         logging.info('Read from MsSql done')
     except Exception as e:
         logging.error('exception when read database %s' % server,e)
-        raise
     finally:
         if conn is not None:
             conn.close()
@@ -104,14 +108,105 @@ def GenerateDispatchDB(dbconf):
                 ddb.addAgentRule(row.get('platform'),row.get('agent'),row.get('server'))
     except Exception as e:
         logging.error('exception when read dispatch db: {0}'.format(e))
-        raise
     finally:
         if conn is not None:
             conn.close()
             conn = None
 
+    ddb.majorInfo()
+
     for platform in ddb.platform_map.values():
-        platform.setUdb( GenerateUDB(platform.dbconf) )
+        udb = GenerateUDB(platform.dbconf)
+        if udb is None:
+            logging.error('Will not update dispatchdb: Can not generate platform %s user database' % platform.name)
+            return None
+        platform.setUdb( udb )
 
     return ddb
         
+
+class DDBGenerator(threading.Thread):
+    def __init__(self,**kwargs):
+        super(DDBGenerator,self).__init__()
+        if 'ruledb' not in kwargs:
+            raise RuntimeError('DDBGenerator need ruledb configuration')
+        self.dbconf = kwargs['ruledb']
+        self.q = Queue.Queue()
+        self.address = 'inproc://%s' % (''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6)))
+        self.ctx = zmq.Context()
+        self.s_out = None
+        self.s_in = None
+        if 'period' in kwargs:
+            self.period = int(kwargs['period'])
+        else:
+            self.period = 60
+
+    def start(self):
+        self.s_out = self.ctx.socket(zmq.PAIR)
+        self.s_out.bind(self.address)
+        super(DDBGenerator,self).start()
+
+        ev = self.s_out.poll(1000,zmq.POLLOUT)
+        if not ( ev & zmq.POLLOUT ):
+            raise RuntimeError('Error when construct DDBGenerator socket pair')
+
+    def stop(self):
+        if self.isAlive():
+            self.s_out.send('quit')
+            self.join(1.0)
+            if self.isAlive():
+                raise RuntimeError('DDBGenerator thread stop timeouted')
+            self.s_out.close()
+            self.s_out = None
+            self.ctx = None
+
+    def socket(self):
+        return self.s_out
+
+    def push(self,ddb):
+        try:
+            while not self.q.empty():
+                self.q.get_nowait()
+        except Queue.Empty:
+            pass
+        
+        self.q.put(ddb)
+
+    def pop(self):
+        ddb = None
+        try:
+            while not self.q.empty():
+                ddb = self.q.get_nowait()
+        except Queue.Empty:
+            pass
+        return ddb
+
+    def run(self):
+        try:
+            self.s_in = self.ctx.socket(zmq.PAIR)
+            self.s_in.connect(self.address)
+            ev = self.s_in.poll(1000,zmq.POLLOUT)
+            if not ( ev & zmq.POLLOUT ):
+                return
+
+            poller = zmq.Poller()
+            poller.register(self.s_in,zmq.POLLIN)
+
+            dbconf = self.dbconf
+            timeout = self.period * 1000
+            while True:
+                events = poller.poll(timeout)
+                if len(events) == 0:
+                    logging.info('start refresh dispatch database')
+                    db = GenerateDispatchDB(dbconf)
+                    if db is not None:
+                        logging.info('fetch dispatch database success')
+                        self.push(db)
+                        self.s_in.send('product')
+                    else:
+                        logging.info('fetch dispatch database failed')
+                else:
+                    break
+        finally:
+            self.s_in.close()
+            self.s_in = None

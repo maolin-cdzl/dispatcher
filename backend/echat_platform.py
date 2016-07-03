@@ -10,6 +10,9 @@ class Platform:
         self.agent_rules = {}
         self.udb = UDB()
 
+    def majorInfo(self):
+        logging.info('Platform %s: %d servers,%d company rules,%d agent_rules' % (self.name,len(self.servers),len(self.company_rules),len(self.agent_rules)))
+
     @staticmethod
     def create(row):
         if ('platform' not in row) or ('db_type' not in row) or ('db_server' not in row) or ('db_user' not in row) or ('db_password' not in row) or ('db_database' not in row):

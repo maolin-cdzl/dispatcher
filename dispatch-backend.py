@@ -6,7 +6,8 @@ from logging import Formatter
 from logging.handlers import TimedRotatingFileHandler
 import daemon
 from daemon import runner
-import frontend_svc
+
+from backend.backend_svc import BackendSvc
 
 def SetupLogger(options):
     FORMAT = "%(asctime)-15s %(levelname)-8s %(filename)-16s %(message)s"
@@ -17,7 +18,7 @@ def SetupLogger(options):
         handler = logging.StreamHandler()
         logger.setLevel(logging.DEBUG)
     else:
-        handler = TimedRotatingFileHandler('%s/dispatch-frontend.log' % options.get('root_path'),when="d",interval=1,backupCount=7)
+        handler = TimedRotatingFileHandler('%s/dispatch-backend.log' % options.get('root_path'),when="d",interval=1,backupCount=7)
         logger.setLevel(logging.INFO)
 
     handler.setFormatter(formatter)
@@ -30,18 +31,19 @@ class App:
         self.stdin_path = '/dev/null'
         self.stdout_path = '/dev/null'
         self.stderr_path = '/dev/null'
-        self.pidfile_path = '%s/dispatcher.pid' % options.get('root_path')
+        self.pidfile_path = '%s/dispatch-backend.pid' % options.get('root_path')
         self.pidfile_timeout = 5
         self.svcs = []
 
     def run(self):
-        frontend_svc.frontend_svc(self.options)
+        svc = BackendSvc(self.options)
+        svc.start()
 
 options = {
     'root_path': os.path.dirname(os.path.abspath(__file__)),
     'debug': True,
     'default_ctx': 'rel',
-    'address': 'tcp://127.0.0.1:5000',
+    'backend-address': 'tcp://127.0.0.1:5000',
     'ruledb': {
         'type': 'mysql',
         'server': 'localhost',
@@ -49,13 +51,6 @@ options = {
         'password': 'shanlitech@231207',
         'database': 'dispatch'
     },
-    #'ruledb': {
-    #    'type': 'mssql',
-    #    'server': '222.222.46.204:9033',
-    #    'user': 'test',
-    #    'password': 'echat_test',
-    #    'database': 'test'
-    #},
     'sync_period' : 60,
 }
 

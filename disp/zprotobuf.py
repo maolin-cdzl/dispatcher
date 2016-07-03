@@ -1,19 +1,18 @@
 # -*- coding: UTF-8 -*-
 
 import logging
-import zmq
 from google.protobuf import symbol_database as _symbol_database
 import disp_pb2
 
-def zmsg_recv(sock):
+def zmsg_recv(sock,flags=0):
     try:
-        frames = sock.recv_multipart(zmq.NOBLOCK)
+        frames = sock.recv_multipart(flags)
         if frames is None or len(frames) == 0:
             return (None,None)
 
         envelop_pos = 0
         while envelop_pos < len(frames):
-            if len(frames) == 0:
+            if len(frames[envelop_pos]) == 0:
                 break
             envelop_pos += 1
 
@@ -23,18 +22,19 @@ def zmsg_recv(sock):
             return (frames[:envelop_pos + 1],frames[envelop_pos + 1:])
         else:
             return (frames,None)
-    except zmq.Again:
+    except Exception as e:
+        logging.error('recv exception: {0}'.format(e))
         return (None,None)
 
-def zmsg_router_recv(sock):
+def zmsg_router_recv(sock,flags=0):
     try:
-        frames = sock.recv_multipart(zmq.NOBLOCK)
+        frames = sock.recv_multipart(flags)
         if frames is None or len(frames) < 2:
             return (None,None)
 
         envelop_pos = 1
         while envelop_pos < len(frames):
-            if len(frames) == 0:
+            if len(frames[envelop_pos]) == 0:
                 break
             envelop_pos += 1
 
@@ -44,7 +44,8 @@ def zmsg_router_recv(sock):
             return (frames[:envelop_pos + 1],frames[envelop_pos + 1:])
         else:
             return (frames,None)
-    except zmq.Again:
+    except Exception as e:
+        logging.error('recv exception: {0}'.format(e))
         return (None,None)
 
 _sym_db = _symbol_database.Default()
@@ -67,12 +68,21 @@ def pb_decode_frames(body):
                     return msg
     return None
 
-def pb_recv(sock):
-    envelope,body = zmsg_recv(sock)
+def pb_recv(sock,flags=0):
+    envelope,body = zmsg_recv(sock,flags)
     return (envelope, pb_decode_frames(body))
 
-def pb_router_recv(sock):
-    envelope,body = zmsg_router_recv(sock)
+def pb_router_recv(sock,flags=0):
+    envelope,body = zmsg_router_recv(sock,flags)
+    #if envelope is not None:
+    #    logging.debug('zmsg recv envelop with %d frames' % len(envelope))
+    #else:
+    #    logging.debug('zmsg recv envelop none')
+
+    #if body is not None:
+    #    logging.debug('zmsg recv body with %d frames' % len(body))
+    #else:
+    #    logging.debug('zmsg recv body none')
     return (envelope, pb_decode_frames(body))
 
 

@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   name='disp.proto',
   package='dispatch',
   syntax='proto2',
-  serialized_pb=_b('\n\ndisp.proto\x12\x08\x64ispatch\"O\n\x07Request\x12\x0b\n\x03\x63tx\x18\x01 \x01(\t\x12\x0f\n\x07\x61\x63\x63ount\x18\x02 \x01(\t\x12\x11\n\tclient_ip\x18\x03 \x01(\t\x12\x13\n\x0b\x63lient_port\x18\x04 \x01(\t\"W\n\x05Reply\x12\x11\n\tserver_ip\x18\x01 \x01(\t\x12\x13\n\x0bserver_port\x18\x02 \x01(\x05\x12\x11\n\tclient_ip\x18\x03 \x01(\t\x12\x13\n\x0b\x63lient_port\x18\x04 \x01(\t')
+  serialized_pb=_b('\n\ndisp.proto\x12\x08\x64ispatch\"O\n\x07Request\x12\x0b\n\x03\x63tx\x18\x01 \x01(\t\x12\x0f\n\x07\x61\x63\x63ount\x18\x02 \x01(\t\x12\x11\n\tclient_ip\x18\x03 \x01(\t\x12\x13\n\x0b\x63lient_port\x18\x04 \x01(\x05\"W\n\x05Reply\x12\x11\n\tserver_ip\x18\x01 \x01(\t\x12\x13\n\x0bserver_port\x18\x02 \x01(\x05\x12\x11\n\tclient_ip\x18\x03 \x01(\t\x12\x13\n\x0b\x63lient_port\x18\x04 \x01(\x05')
 )
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
@@ -56,8 +56,8 @@ _REQUEST = _descriptor.Descriptor(
       options=None),
     _descriptor.FieldDescriptor(
       name='client_port', full_name='dispatch.Request.client_port', index=3,
-      number=4, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
+      number=4, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
@@ -108,8 +108,8 @@ _REPLY = _descriptor.Descriptor(
       options=None),
     _descriptor.FieldDescriptor(
       name='client_port', full_name='dispatch.Reply.client_port', index=3,
-      number=4, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
+      number=4, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),

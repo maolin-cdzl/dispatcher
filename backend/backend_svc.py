@@ -6,9 +6,9 @@ import zmq
 
 from dbtypes import *
 from dispatchdb import DispatchDB
-from generator import GenerateDispatchDB
-from zmsg import pb_recv,pb_router_recv
-import disp_pb2
+from generator import GenerateDispatchDB,DDBGenerator
+from disp import disp_pb2
+from disp import zprotobuf 
 
 class BackendSvc:
     def __init__(self,options):
@@ -27,8 +27,9 @@ class BackendSvc:
 
         platform = self.db.ctx_map.get(ctx,None)
         if platform is None:
-            platform = self.db.ctx_map.get(self.defaultCtx(),None)
-            if platforma is None:
+            ctx = self.defaultCtx()
+            platform = self.db.ctx_map.get(ctx,None)
+            if platform is None:
                 logging.error('default ctx invalid')
                 return None
     
@@ -41,43 +42,39 @@ class BackendSvc:
             server = self.db.ctx_default.get(ctx,None)
         return server
 
-
-    def onPipe(self,watcher,revents):
-        data = watcher.fd.read(32)
-        # TODO get new DispatchDB
-        pass
-
     def handleRequest(self,sock):
-        while True:
-            envelope,request= pb_router_recv(sock)
-            if envelope is None or request is None:
-                return
+        #while True:
+        # poller act like 'level trigger' ?
+        envelope,request= zprotobuf.pb_router_recv(sock,zmq.NOBLOCK)
+        if envelope is None or request is None:
+            logging.warning('Request recv error')
+            return
 
-            if request.DESCRIPTOR.full_name != 'dispatch.Request':
-                logging.warning('unsupport request %s from %s' % (request.DESCRIPTOR.full_name,str(address)))
-                return
-            ctx = None
-            account = None
+        if request.DESCRIPTOR.full_name != 'dispatch.Request':
+            logging.warning('unsupport request %s' % (request.DESCRIPTOR.full_name))
+            return
+        ctx = None
+        account = None
 
-            if request.HasField('ctx'):
-                ctx = request.ctx
-            if request.HasField('account'):
-                account = request.account
+        if request.HasField('ctx'):
+            ctx = request.ctx
+        if request.HasField('account'):
+            account = request.account
 
-            server = self.dispatch(ctx,account)
-            logging.debug('request ctx=%s,account=%s, return %s' % (ctx,account,str(server)))
+        server = self.dispatch(ctx,account)
+        #logging.debug('request ctx=%s,account=%s, return %s' % (ctx,account,str(server)))
 
-            reply = disp_pb2.Reply()
-            reply.server_ip = server.ip
-            reply.server_port = server.port
-            if request.HasField('client_ip'):
-                reply.client_ip = request.client_ip
-            if request.HasField('client_port'):
-                reply.client_port = request.client_port
-            
-            sock.send_multipart(envelope,zmq.SNDMORE)
-            sock.send_string(reply.DESCRIPTOR.full_name,zmq.SNDMORE)
-            sock.send( reply.SerializeToString() )
+        reply = disp_pb2.Reply()
+        reply.server_ip = server.ip
+        reply.server_port = server.port
+        if request.HasField('client_ip'):
+            reply.client_ip = request.client_ip
+        if request.HasField('client_port'):
+            reply.client_port = request.client_port
+        
+        sock.send_multipart(envelope,zmq.SNDMORE)
+        sock.send_string(reply.DESCRIPTOR.full_name,zmq.SNDMORE)
+        sock.send( reply.SerializeToString() )
         
 
     def start(self):
@@ -86,12 +83,15 @@ class BackendSvc:
             logging.fatal('Can not read database')
             return
         zctx = zmq.Context()
+        gt = DDBGenerator(ruledb=self.options.get('ruledb'),period=self.options.get('sync_period'))
+        svcsock = zctx.socket(zmq.ROUTER)
         try:
-            svcsock = zctx.socket(zmq.ROUTER)
-            svcsock.bind(self.options.get('address'))
+            gt.start()
+            svcsock.bind(self.options.get('backend-address'))
 
             poller = zmq.Poller()
             poller.register(svcsock,zmq.POLLIN)
+            poller.register(gt.socket(),zmq.POLLIN)
 
             while True:
                 events = dict(poller.poll())
@@ -100,9 +100,19 @@ class BackendSvc:
                     continue
                 if svcsock in events:
                     self.handleRequest(svcsock)
+                if gt.socket() in events:
+                    gt.socket().recv()
+                    ddb = gt.pop()
+                    if ddb is not None:
+                        self.db = ddb
+                        logging.info('Update database')
         except zmq.ContextTerminated as e:
             logging.info('ZMQ context terminated')
+        except RuntimeError as e:
+            logging.info('RuntimeError: {0}'.format(e))
         finally:
+            if gt is not None:
+                gt.stop()
             if not zctx.closed:
                 if svcsock is not None:
                     svcsock.close()

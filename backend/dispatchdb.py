@@ -6,11 +6,16 @@ class DispatchDB:
         self.ctx_map = {}
         self.ctx_default = {}
 
+    def majorInfo(self):
+        for platform in self.platform_map.values():
+            platform.majorInfo()
+        for ctx in self.ctx_map.keys():
+            logging.info('ctx %s point to platform %s,default server %s' % (ctx,self.ctx_map[ctx].name,self.ctx_default[ctx]))
+
     def addPlatformat(self,pf):
         if pf is None:
             return
         self.platform_map[pf.name] = pf
-        logging.info('Construct platform: %s' % pf.name)
 
     def addCtx(self,pfname,ctx,defaultServer):
         if pfname is None or ctx is None or defaultServer is None:
@@ -35,7 +40,6 @@ class DispatchDB:
             logging.error("server's platform %s is not exists" % pfname)
             return
         platform.addServer(server)
-        logging.info('Add server %s of platform %s' % (server.name,pfname))
 
     def addCompanyRule(self,pfname,cid,sname):
         if pfname is None or cid is None or sname is None:

@@ -2,10 +2,13 @@
 
 import logging
 import signal
-import socket
 import gevent
+from gevent import socket
 import zmq.green as zmq
 
+from ptt import ptt_pb2,rr_pb2
+from disp import disp_pb2
+from disp import zprotobuf 
 from etpacket import *
 
 zctx = zmq.Context()
@@ -16,14 +19,16 @@ def pollReply(options):
     backends = options.get('backend-address')
     if isinstance(backends,str):
         sock_be.connect(backends)
+        logging.info('connect backend: %s' % backends)
     elif isinstance(backends,list):
         for addr in backends:
             sock_be.connect(addr)
+            logging.info('connect backend: %s' % addr)
     else:
         raise RuntimeError('Unknown backend-address type: %s' % type(backends).__name__)
-
     while True:
-        envelope,msg = pb_recv(sock_be)
+        envelope,msg = zprotobuf.pb_recv(sock_be)
+        logging.debug('pollReply recv return')
         if msg is not None:
             if isinstance(msg,disp_pb2.Reply):
                 if msg.HasField('server_ip') and msg.HasField('server_port') and msg.HasField('client_ip') and msg.HasField('client_port'):
@@ -43,11 +48,12 @@ def pollReply(options):
 
 def pollRequest(options):
     sock_svc.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
-    sock_svc.bind(options.get('svc-address'))
-    sock_svc.setblocking(0)
+    sock_svc.bind(options.get('frontend-address'))
+    logging.info('Bind frontend on: %s' % str(options.get('frontend-address')))
 
     while True:
-        packet,address = sock.recvfrom(1024)
+        packet,address = sock_svc.recvfrom(1024)
+        logging.debug('pollRequest recv return')
         if packet is None or address is None:
             continue 
         packetlen,msg = etpacket.unpack(packet)
@@ -70,9 +76,10 @@ def pollRequest(options):
             logging.warning('unsupport request %s from %s' % (msg.DESCRIPTOR.full_name,str(address)))
 
 
-
 def run(options):
+    #gevent.signal(signal.SIGINT,gevent.shutdown)
+    #gevent.signal(signal.SIGTERM,gevent.shutdown)
     backend_svc = gevent.spawn(pollReply,options)
     frontend_svc = gevent.spawn(pollRequest,options)
-    gevent.joinall([backend_svc,front_svc])
+    gevent.joinall([backend_svc,frontend_svc])
 
