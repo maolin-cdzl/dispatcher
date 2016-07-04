@@ -5,4 +5,5 @@
 *.lock
 /private_keys/
 /public_keys/
+/cert/
 /log/

@@ -1,10 +1,13 @@
 # -*- coding: UTF-8 -*-
 
+import os
 import logging
 import signal
 import string
 import random
 import zmq
+import zmq.auth
+from zmq.auth.thread import ThreadAuthenticator
 
 from dbtypes import *
 from dispatchdb import DispatchDB
@@ -17,6 +20,7 @@ _sock = None
 _ddb = None
 _options = None
 _generator = None
+_auth = None
 
 _exit_address = 'inproc://%s' % (''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6)))
 _exit_sock = _zctx.socket(zmq.PUB)
@@ -29,6 +33,42 @@ def backend_exit(signum,frame):
 signal.signal(signal.SIGINT,backend_exit)
 signal.signal(signal.SIGTERM,backend_exit)
 
+def getExistsPath(base_dir,path):
+    p = os.path.join(base_dir,path)
+    if os.path.exists(p):
+        return p
+    p = os.path.join(path)
+    if os.path.exists(p):
+        return p
+    logging.critical('Can not found path: %s' % path)
+    raise RuntimeError('Can not found path: %s' % path)
+
+
+def setup_auth():
+    global _auth
+    assert _options is not None
+    auth = _options.get('auth',None)
+    if auth is None:
+        return
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)),'..'))
+    try:
+        _auth = ThreadAuthenticator(_zctx)
+        _auth.start()
+        whitelist = auth.get('whitelist',None)
+        if whitelist is not None:
+            _auth.allow(whitelist)
+        public_path = auth.get('public_key_dir','public_keys')
+        _auth.configure_curve(domain='*',location=getExistsPath(base_dir,public_path))
+        private_dir = getExistsPath(base_dir,auth.get('private_key_dir','private_keys'))
+        private_key = os.path.join(private_dir,auth.get('private_key_file','server.key_secret'))
+        server_public,server_private = zmq.auth.load_certificate(private_key)
+        _sock.curve_secretkey = server_private
+        _sock.curve_publickey = server_public
+        _sock.curve_server = True
+    except:
+        _auth.stop()
+        _auth = None
+
 def defaultCtx():
     return _options.get('default_ctx',None)
 
@@ -40,7 +80,7 @@ def dispatch(ctx,account):
     if platform is None:
         return -1
 
-    if acount == ctx:
+    if account == ctx:
         return _ddb.ctx_default.get(ctx,None)
 
     user = platform.getUser(account)
@@ -92,6 +132,7 @@ def handleRequest():
     _sock.send( reply.SerializeToString() )
 
 def run(options):
+    global _options,_ddb,_generator,_sock
     _options = options
     _ddb = GenerateDispatchDB(_options.get('ruledb'))
     if _ddb is None:
@@ -103,6 +144,7 @@ def run(options):
     sock_exit_watcher = _zctx.socket(zmq.SUB)
     try:
         _generator.start()
+        setup_auth()
         _sock.bind(_options.get('backend-address'))
         sock_exit_watcher.connect(_exit_address)
         sock_exit_watcher.setsockopt(zmq.SUBSCRIBE,'')
@@ -129,13 +171,15 @@ def run(options):
         logging.info('ZMQ context terminated')
     except RuntimeError as e:
         logging.error('RuntimeError: {0}'.format(e))
-    except Exception as e:
-        logging.error('Exception: {0}'.format(e))
+#    except Exception as e:
+#        logging.error('Exception: {0}'.format(e))
     finally:
         sock_exit_watcher.close()
         if _generator is not None:
             _generator.stop()
             _generator = None
         _ddb = None
+        if _auth is not None:
+            _auth.stop()
 
 
