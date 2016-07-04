@@ -108,10 +108,7 @@ def GenerateDispatchDB(dbconf):
                 ddb.addAgentRule(row.get('platform'),row.get('agent'),row.get('server'))
     except Exception as e:
         logging.error('exception when read dispatch db: {0}'.format(e))
-    finally:
-        if conn is not None:
-            conn.close()
-            conn = None
+        return None
 
     ddb.majorInfo()
 

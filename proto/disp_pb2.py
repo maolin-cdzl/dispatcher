@@ -18,7 +18,6 @@ _sym_db = _symbol_database.Default()
 DESCRIPTOR = _descriptor.FileDescriptor(
   name='disp.proto',
   package='dispatch',
-  syntax='proto2',
   serialized_pb=_b('\n\ndisp.proto\x12\x08\x64ispatch\"O\n\x07Request\x12\x0b\n\x03\x63tx\x18\x01 \x01(\t\x12\x0f\n\x07\x61\x63\x63ount\x18\x02 \x01(\t\x12\x11\n\tclient_ip\x18\x03 \x01(\t\x12\x13\n\x0b\x63lient_port\x18\x04 \x01(\x05\"W\n\x05Reply\x12\x11\n\tserver_ip\x18\x01 \x01(\t\x12\x13\n\x0bserver_port\x18\x02 \x01(\x05\x12\x11\n\tclient_ip\x18\x03 \x01(\t\x12\x13\n\x0b\x63lient_port\x18\x04 \x01(\x05')
 )
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
@@ -69,7 +68,6 @@ _REQUEST = _descriptor.Descriptor(
   ],
   options=None,
   is_extendable=False,
-  syntax='proto2',
   extension_ranges=[],
   oneofs=[
   ],
@@ -121,7 +119,6 @@ _REPLY = _descriptor.Descriptor(
   ],
   options=None,
   is_extendable=False,
-  syntax='proto2',
   extension_ranges=[],
   oneofs=[
   ],

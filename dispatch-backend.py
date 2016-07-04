@@ -7,7 +7,6 @@ from logging.handlers import TimedRotatingFileHandler
 import daemon
 from daemon import runner
 
-from backend.backend_svc import BackendSvc
 
 def SetupLogger(options):
     FORMAT = "%(asctime)-15s %(levelname)-8s %(filename)-16s %(message)s"
@@ -36,8 +35,8 @@ class App:
         self.svcs = []
 
     def run(self):
-        svc = BackendSvc(self.options)
-        svc.start()
+        import backend.backend_svc as backend_svc
+        backend_svc.run(self.options)
 
 options = {
     'root_path': os.path.dirname(os.path.abspath(__file__)),
