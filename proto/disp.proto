@@ -8,9 +8,10 @@ message Request {
 }
 
 message Reply {
-	optional string server_ip = 1;
-	optional int32	server_port = 2;
-	optional string client_ip = 3;
-	optional int32 client_port = 4;
+	optional int32	result = 1;
+	optional string server_ip = 2;
+	optional int32	server_port = 3;
+	optional string client_ip = 4;
+	optional int32 client_port = 5;
 }
 

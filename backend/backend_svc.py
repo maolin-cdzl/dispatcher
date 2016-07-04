@@ -38,15 +38,14 @@ def dispatch(ctx,account):
 
     platform = _ddb.ctx_map.get(ctx,None)
     if platform is None:
-        ctx = defaultCtx()
-        platform = _ddb.ctx_map.get(ctx,None)
-        if platform is None:
-            logging.error('default ctx invalid')
-            return None
+        return -1
+
+    if acount == ctx:
+        return _ddb.ctx_default.get(ctx,None)
 
     user = platform.getUser(account)
     if user is None:
-        return _ddb.ctx_default.get(ctx,None)
+        return -2
 
     server = platform.dispatch(user.company)
     if server is None:
@@ -77,8 +76,12 @@ def handleRequest():
     #logging.debug('request ctx=%s,account=%s, return %s' % (ctx,account,str(server)))
 
     reply = disp_pb2.Reply()
-    reply.server_ip = server.ip
-    reply.server_port = server.port
+    if isinstance(server,int):
+        reply.result = server
+    else:
+        reply.result = 0
+        reply.server_ip = server.ip
+        reply.server_port = server.port
     if request.HasField('client_ip'):
         reply.client_ip = request.client_ip
     if request.HasField('client_port'):

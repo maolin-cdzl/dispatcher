@@ -32,12 +32,13 @@ def pollReply(options):
 #        logging.debug('pollReply recv return')
         if msg is not None:
             if isinstance(msg,disp_pb2.Reply):
-                if msg.HasField('server_ip') and msg.HasField('server_port') and msg.HasField('client_ip') and msg.HasField('client_port'):
+                if msg.HasField('client_ip') and msg.HasField('client_port'):
                     reply = rr_pb2.QueryServerAck()
-                    reply.result = 0
-                    server = reply.servers.add()
-                    server.ip = struct.unpack('!I',socket.inet_aton(msg.server_ip))[0]
-                    server.port = socket.htons(msg.server_port)
+                    reply.result = msg.result
+                    if msg.HasField('server_ip') and msg.HasField('server_port'):
+                        server = reply.servers.add()
+                        server.ip = struct.unpack('!I',socket.inet_aton(msg.server_ip))[0]
+                        server.port = socket.htons(msg.server_port)
 
                     packet = etpacket.pack(reply)
                     sock_svc.sendto(packet,(msg.client_ip,msg.client_port))
