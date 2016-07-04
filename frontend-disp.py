@@ -1,13 +1,17 @@
 #!/usr/bin/python
 
 import os
+import json
 import logging
 from logging import Formatter
 from logging.handlers import TimedRotatingFileHandler
 import daemon
 from daemon import runner
+from frontend_conf import options
 
-def SetupLogger(options):
+root_path = os.path.dirname(os.path.abspath(__file__))
+
+def SetupLogger():
     FORMAT = "%(asctime)-15s %(levelname)-8s %(filename)-16s %(message)s"
     formatter = Formatter(fmt=FORMAT)
     logger = logging.getLogger()
@@ -16,7 +20,10 @@ def SetupLogger(options):
         handler = logging.StreamHandler()
         logger.setLevel(logging.DEBUG)
     else:
-        handler = TimedRotatingFileHandler('%s/dispatch-frontend.log' % options.get('root_path'),when="d",interval=1,backupCount=7)
+        log_dir = os.path.join(root_path,'log')
+        if not os.path.exists(log_dir):
+            os.mkdir(log_dir)
+        handler = TimedRotatingFileHandler('%s/dispatch-frontend.log' % log_path,when="d",interval=1,backupCount=7)
         logger.setLevel(logging.INFO)
 
     handler.setFormatter(formatter)
@@ -24,34 +31,26 @@ def SetupLogger(options):
 
 
 class App:
-    def __init__(self,options):
-        self.options = options
+    def __init__(self):
         self.stdin_path = '/dev/null'
         self.stdout_path = '/dev/null'
         self.stderr_path = '/dev/null'
-        self.pidfile_path = '%s/dispatch-frontend.pid' % options.get('root_path')
+        self.pidfile_path = '%s/dispatch-frontend.pid' % root_path
         self.pidfile_timeout = 5
         self.svcs = []
 
     def run(self):
         from frontend import frontend_svc
-        SetupLogger(self.options)
+        SetupLogger()
         try:
             logging.info('dispatcher frontend start')
-            frontend_svc.run(self.options)
+            frontend_svc.run(options)
             logging.info('dispatcher frontend exit')
         except Exception as e:
             logging.error('Exception: {0}'.format(e))
 
-options = {
-    'root_path': os.path.dirname(os.path.abspath(__file__)),
-    'debug': False,
-    'backend-address': 'tcp://127.0.0.1:5000',
-    'frontend-address': ('127.0.0.1',5002)
-}
-
 if __name__ == '__main__':
-    app = App(options)
+    app = App()
 
     if options.get('debug',False):
         app.run()

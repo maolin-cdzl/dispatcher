@@ -1,5 +1,8 @@
 *.swp
 *.log
 *.pyc
+*.pid
+*.lock
 /private_keys/
 /public_keys/
+/log/
